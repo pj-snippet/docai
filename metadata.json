@@ -1,0 +1,6 @@
+{
+  "name": "DocAI - Document Intelligence",
+  "description": "Expert document intelligence assistant for extracting, analyzing, and translating complex unstructured PDF documents into actionable insights, executive summaries, metrics, and structured tables.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
