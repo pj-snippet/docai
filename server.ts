@@ -2,19 +2,13 @@ import 'dotenv/config';
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
-
-// 1. Check what process.env is seeing
-console.log("Loaded API Key:", process.env.GEMINI_API_KEY ? "EXISTS (starts with " + process.env.GEMINI_API_KEY.slice(0, 5) + "...)" : "UNDEFINED / MISSING");
-
-// 2. Initialize the SDK
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Increase payload limit for PDF base64 uploads
 app.use(express.json({ limit: "50mb" }));
@@ -99,7 +93,6 @@ Remember to give a direct 1-2 sentence answer first, followed by supporting cita
     const parts: any[] = [];
 
     if (fileData) {
-      // Clean base64 if it has header like "data:application/pdf;base64,"
       const cleanBase64 = fileData.includes(",") ? fileData.split(",")[1] : fileData;
       parts.push({
         inlineData: {
@@ -113,7 +106,6 @@ Remember to give a direct 1-2 sentence answer first, followed by supporting cita
       });
     }
 
-    // Add conversation history if provided
     if (Array.isArray(history) && history.length > 0) {
       const historyContext = history
         .slice(-6)
@@ -131,7 +123,7 @@ Remember to give a direct 1-2 sentence answer first, followed by supporting cita
     let outputText = "";
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: "gemini-2.5-flash",
         contents: { parts },
         config: {
           systemInstruction: DOCAI_SYSTEM_INSTRUCTION,
@@ -140,14 +132,13 @@ Remember to give a direct 1-2 sentence answer first, followed by supporting cita
       });
       outputText = response.text || "";
     } catch (primaryError: any) {
-      console.warn("Primary model gemini-3.6-flash error, falling back to gemini-3.8-flash:", primaryError?.message);
+      console.warn("Primary model error, falling back to gemini-2.0-flash:", primaryError?.message);
       const fallbackResponse = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-2.0-flash",
         contents: { parts },
         config: {
           systemInstruction: DOCAI_SYSTEM_INSTRUCTION,
           temperature: 0.1,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         },
       });
       outputText = fallbackResponse.text || "";
@@ -171,25 +162,30 @@ Remember to give a direct 1-2 sentence answer first, followed by supporting cita
   }
 });
 
-// Setup Vite development server middleware or static serve in production
-async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+// Export Express app for Vercel integration
+export default app;
+
+// Setup local dev server or static serve (only runs locally, not inside serverless execution)
+if (process.env.VERCEL !== '1') {
+  async function startServer() {
+    if (process.env.NODE_ENV !== "production") {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
+
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`DocAI server running on http://0.0.0.0:${PORT}`);
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`DocAI server running on http://0.0.0.0:${PORT}`);
-  });
+  startServer();
 }
-
-startServer();
