@@ -73,9 +73,9 @@ export default async function handler(req: any, res: any) {
       });
       outputText = response.text || "";
     } catch (error: any) {
-      console.warn("Primary model error, falling back to gemini-3.6-flash:", error.message);
+      console.warn("Primary model error, falling back to gemini-3.8-flash:", error.message);
       const fallbackResponse = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: "gemini-3.8-flash",
         contents: { parts },
         config: { systemInstruction: DOCAI_SYSTEM_INSTRUCTION, temperature: 0.1 },
       });
