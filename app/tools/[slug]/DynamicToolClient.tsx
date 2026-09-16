@@ -15,6 +15,7 @@ export default function DynamicToolClient({ defaultPrompt }: DynamicToolClientPr
   const handleAnalyze = async () => {
     if (!file) return;
     setLoading(true);
+    setResult('');
 
     const formData = new FormData();
     formData.append('file', file);
@@ -25,10 +26,26 @@ export default function DynamicToolClient({ defaultPrompt }: DynamicToolClientPr
         method: 'POST',
         body: formData,
       });
+
+      // Verify that the server returned JSON before attempting to parse
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const rawText = await res.text();
+        console.error('Server returned non-JSON response:', rawText);
+        setResult(`Server Error (${res.status}): ${rawText.slice(0, 200)}`);
+        return;
+      }
+
       const data = await res.json();
-      setResult(data.analysis || data.error || 'No result returned');
+
+      if (!res.ok) {
+        setResult(data.error || `Request failed with status ${res.status}`);
+        return;
+      }
+
+      setResult(data.analysis || 'No analysis generated.');
     } catch (err: any) {
-      setResult('Failed to process document');
+      setResult(`Network/Client Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
