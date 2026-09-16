@@ -23,9 +23,9 @@ export default function DynamicToolClient({ defaultPrompt }: DynamicToolClientPr
 
     try {
       const res = await fetch('/api/analyze', {
-        method: 'POST',
-        body: formData,
-      });
+      method: 'POST',
+     body: formData,
+     });
 
       // Verify that the server returned JSON before attempting to parse
       const contentType = res.headers.get('content-type');

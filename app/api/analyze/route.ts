@@ -1,3 +1,6 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { GoogleGenAI } from '@google/genai';
 import Groq from 'groq-sdk';
 import { PDFParse } from 'pdf-parse';
