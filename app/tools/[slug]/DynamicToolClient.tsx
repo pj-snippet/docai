@@ -1,6 +1,4 @@
-'use client';
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface DynamicToolClientProps {
   defaultPrompt: string;
@@ -11,11 +9,18 @@ export default function DynamicToolClient({ defaultPrompt }: DynamicToolClientPr
   const [prompt, setPrompt] = useState(defaultPrompt);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string>('');
+  const [copied, setCopied] = useState(false);
+
+  // Sync state if defaultPrompt changes on route navigation
+  useEffect(() => {
+    setPrompt(defaultPrompt);
+  }, [defaultPrompt]);
 
   const handleAnalyze = async () => {
     if (!file) return;
     setLoading(true);
     setResult('');
+    setCopied(false);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -23,11 +28,10 @@ export default function DynamicToolClient({ defaultPrompt }: DynamicToolClientPr
 
     try {
       const res = await fetch('/api/analyze', {
-      method: 'POST',
-     body: formData,
-     });
+        method: 'POST',
+        body: formData,
+      });
 
-      // Verify that the server returned JSON before attempting to parse
       const contentType = res.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const rawText = await res.text();
@@ -49,6 +53,13 @@ export default function DynamicToolClient({ defaultPrompt }: DynamicToolClientPr
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCopy = () => {
+    if (!result) return;
+    navigator.clipboard.writeText(result);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -82,8 +93,16 @@ export default function DynamicToolClient({ defaultPrompt }: DynamicToolClientPr
       </button>
 
       {result && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg border text-sm whitespace-pre-wrap">
-          <div className="font-semibold mb-2 text-gray-800">Analysis Result:</div>
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg border text-sm whitespace-pre-wrap relative">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-semibold text-gray-800">Analysis Result:</span>
+            <button
+              onClick={handleCopy}
+              className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-200 hover:bg-gray-300 rounded transition-colors"
+            >
+              {copied ? 'Copied!' : 'Copy Result'}
+            </button>
+          </div>
           <div className="text-gray-700">{result}</div>
         </div>
       )}
