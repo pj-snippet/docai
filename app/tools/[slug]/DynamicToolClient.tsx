@@ -11,10 +11,23 @@ export default function DynamicToolClient({ defaultPrompt }: DynamicToolClientPr
   const [result, setResult] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
-  // Sync state if defaultPrompt changes on route navigation
   useEffect(() => {
     setPrompt(defaultPrompt);
   }, [defaultPrompt]);
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const resultStr = reader.result as string;
+        // Strip out the header (e.g. data:application/pdf;base64,)
+        const base64 = resultStr.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
   const handleAnalyze = async () => {
     if (!file) return;
@@ -22,21 +35,26 @@ export default function DynamicToolClient({ defaultPrompt }: DynamicToolClientPr
     setResult('');
     setCopied(false);
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('prompt', prompt);
-
     try {
+      const fileBase64 = await fileToBase64(file);
+
       const res = await fetch('/api/analyze', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileBase64,
+          mimeType: file.type || 'application/pdf',
+          prompt,
+        }),
       });
 
       const contentType = res.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const rawText = await res.text();
-        console.error('Server returned non-JSON response:', rawText);
-        setResult(`Server Error (${res.status}): ${rawText.slice(0, 200)}`);
+        console.error('Server non-JSON response:', rawText);
+        setResult(`Server Error (${res.status}): ${rawText.slice(0, 150)}...`);
         return;
       }
 
@@ -47,9 +65,9 @@ export default function DynamicToolClient({ defaultPrompt }: DynamicToolClientPr
         return;
       }
 
-      setResult(data.analysis || 'No analysis generated.');
+      setResult(data.analysis || 'No analysis returned.');
     } catch (err: any) {
-      setResult(`Network/Client Error: ${err.message}`);
+      setResult(`Client Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
